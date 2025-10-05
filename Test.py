@@ -100,7 +100,6 @@ class CabinetPediatrie:
         welcome_label = tk.Label(header_frame, text=f"Bienvenue, Dr Taibi Houria", font=("Segoe UI", 12), bg="#667eea", fg="white")
         welcome_label.pack(side="right")
 
-
         main_frame = tk.Frame(self.root, bg="#f8f9fa")
         main_frame.pack(expand=True, fill="both")
 
@@ -142,7 +141,6 @@ class CabinetPediatrie:
         
         self.consultations_tree.bind("<Double-1>", self.edit_consultation_from_tree)
 
-
     def load_consultations(self):
         for i in self.consultations_tree.get_children():
             self.consultations_tree.delete(i)
@@ -162,27 +160,44 @@ class CabinetPediatrie:
         form_frame.pack(padx=20, pady=10, fill="x")
 
         # Form fields
-        self.create_consultation_form(form_frame)
+        last_row = self.create_consultation_form(form_frame)
 
+        # FIX: Save button goes on a separate row after last field
         save_button = ttk.Button(form_frame, text="Enregistrer", command=self.save_consultation, style="Accent.TButton")
-        save_button.grid(row=7, column=0, pady=20)
+        save_button.grid(row=last_row, column=0, columnspan=2, pady=20, sticky="ew")
 
     def create_consultation_form(self, parent_frame):
-        labels = ["Date de consultation", "Nom du patient", "Prénom du patient", "Âge", "Motif de consultation", "Examen clinique", "Examens complémentaires", "Traitement"]
+        labels = [
+            "Date de consultation",
+            "Nom du patient",
+            "Prénom du patient",
+            "Âge",
+            "Motif de consultation",
+            "Examen clinique",
+            "Examens complémentaires",
+            "Traitement"
+        ]
         self.form_entries = {}
 
         for i, label_text in enumerate(labels):
             label = tk.Label(parent_frame, text=label_text, font=("Segoe UI", 12), bg="white")
-            label.grid(row=i, column=0, sticky="w", pady=5)
+            label.grid(row=i, column=0, sticky="w", pady=5, padx=5)
             if "consultation" in label_text.lower() or "examen" in label_text.lower() or "traitement" in label_text.lower():
-                 entry = tk.Text(parent_frame, font=("Segoe UI", 12), height=4, width=50)
+                entry = tk.Text(parent_frame, font=("Segoe UI", 12), height=4, width=50)
             else:
-                 entry = ttk.Entry(parent_frame, font=("Segoe UI", 12))
+                entry = ttk.Entry(parent_frame, font=("Segoe UI", 12))
             entry.grid(row=i, column=1, pady=5, padx=10, sticky="ew")
             self.form_entries[label_text] = entry
-            
+
+        parent_frame.grid_columnconfigure(1, weight=1)  # make entry column expand
+        return len(labels)  # return the next free row index
+
     def save_consultation(self):
-        values = [self.form_entries[label].get("1.0", "end-1c") if isinstance(self.form_entries[label], tk.Text) else self.form_entries[label].get() for label in self.form_entries]
+        values = [
+            self.form_entries[label].get("1.0", "end-1c") if isinstance(self.form_entries[label], tk.Text)
+            else self.form_entries[label].get()
+            for label in self.form_entries
+        ]
 
         cursor = self.db_conn.cursor()
         cursor.execute('''
@@ -217,16 +232,18 @@ class CabinetPediatrie:
             else:
                 self.form_entries[key].insert(0, consultation[i+1])
 
-
         update_button = ttk.Button(form_frame, text="Mettre à jour", command=lambda: self.update_consultation(consultation_id), style="Accent.TButton")
-        update_button.grid(row=8, column=0, columnspan=2, pady=20)
+        update_button.grid(row=8, column=0, columnspan=2, pady=20, sticky="ew")
         
         delete_button = ttk.Button(form_frame, text="Supprimer", command=lambda: self.delete_consultation(consultation_id), style="Danger.TButton")
-        delete_button.grid(row=9, column=0, columnspan=2, pady=10)
-
+        delete_button.grid(row=9, column=0, columnspan=2, pady=10, sticky="ew")
 
     def update_consultation(self, consultation_id):
-        values = [self.form_entries[label].get("1.0", "end-1c") if isinstance(self.form_entries[label], tk.Text) else self.form_entries[label].get() for label in self.form_entries]
+        values = [
+            self.form_entries[label].get("1.0", "end-1c") if isinstance(self.form_entries[label], tk.Text)
+            else self.form_entries[label].get()
+            for label in self.form_entries
+        ]
         values.append(consultation_id)
         
         cursor = self.db_conn.cursor()
@@ -252,7 +269,6 @@ class CabinetPediatrie:
             self.load_consultations()
             messagebox.showinfo("Succès", "Consultation supprimée avec succès!")
 
-
     def show_stats_view(self):
         self.clear_content_frame()
         
@@ -274,8 +290,9 @@ class CabinetPediatrie:
         
         today_consultations_label = tk.Label(stats_frame, text=f"Consultations aujourd'hui: {today_consultations}", font=("Segoe UI", 16), bg="white")
         today_consultations_label.pack(pady=10)
-        
-        avg_age_label = tk.Label(stats_frame, text=f"Âge moyen des patients: {avg_age:.2f if avg_age else 0}", font=("Segoe UI", 16), bg="white")
+
+        avg_age_text = f"{avg_age:.2f}" if avg_age else "0"
+        avg_age_label = tk.Label(stats_frame, text=f"Âge moyen des patients: {avg_age_text}", font=("Segoe UI", 16), bg="white")
         avg_age_label.pack(pady=10)
         
     def clear_frame(self):
@@ -299,7 +316,5 @@ if __name__ == "__main__":
     style.map("Nav.TButton", background=[("active", "#e9ecef")])
     style.configure("Danger.TButton", foreground="white", background="#dc3545")
 
-
-    
     app = CabinetPediatrie(root)
     root.mainloop()
