@@ -3,6 +3,18 @@ from tkinter import ttk, messagebox
 import sqlite3
 import bcrypt
 from datetime import datetime
+import sys, os
+
+
+# --- Ajout pour PyInstaller ---
+def resource_path(relative_path):
+    """ Trouve le chemin absolu des ressources, compatible PyInstaller """
+    try:
+        base_path = sys._MEIPASS  # quand exécuté en .exe
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 
 class CabinetPediatrie:
     def __init__(self, root):
@@ -11,9 +23,11 @@ class CabinetPediatrie:
         self.root.geometry("1200x800")
         self.root.configure(bg="#f8f9fa")
 
-        self.db_conn = sqlite3.connect('consultations.db')
-        self.create_tables()
+        # Utilisation de resource_path pour inclure la DB même dans le .exe
+        db_path = resource_path("consultations.db")
+        self.db_conn = sqlite3.connect(db_path)
 
+        self.create_tables()
         self.current_user = None
         self.show_login_screen()
 
