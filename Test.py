@@ -121,14 +121,41 @@ class CabinetPediatrie:
 
         self.show_consultations_view()
 
+    # ---------- Helpers pour scroll ----------
+    def make_scrollable_frame(self, parent):
+        canvas = tk.Canvas(parent, bg="white")
+        scrollbar = ttk.Scrollbar(parent, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas, bg="white")
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        window = canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # permettre scroll avec molette
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+
+        return scrollable_frame
+
+    # ---------- Consultations ----------
     def show_consultations_view(self):
         self.clear_content_frame()
         
-        title_label = tk.Label(self.content_frame, text="Liste des Consultations", font=("Segoe UI", 20, "bold"), bg="white")
+        # Scrollable frame
+        scroll_frame = self.make_scrollable_frame(self.content_frame)
+
+        title_label = tk.Label(scroll_frame, text="Liste des Consultations", font=("Segoe UI", 20, "bold"), bg="white")
         title_label.pack(pady=20)
 
-        # Consultations list
-        self.consultations_tree = ttk.Treeview(self.content_frame, columns=("ID", "Date", "Nom", "Prénom", "Âge", "Motif"), show="headings")
+        self.consultations_tree = ttk.Treeview(scroll_frame, columns=("ID", "Date", "Nom", "Prénom", "Âge", "Motif"), show="headings", height=20)
         self.consultations_tree.heading("ID", text="ID")
         self.consultations_tree.heading("Date", text="Date")
         self.consultations_tree.heading("Nom", text="Nom")
@@ -138,7 +165,6 @@ class CabinetPediatrie:
         self.consultations_tree.pack(expand=True, fill="both", padx=20, pady=10)
 
         self.load_consultations()
-        
         self.consultations_tree.bind("<Double-1>", self.edit_consultation_from_tree)
 
     def load_consultations(self):
@@ -150,19 +176,20 @@ class CabinetPediatrie:
         for row in cursor.fetchall():
             self.consultations_tree.insert("", "end", values=row)
 
+    # ---------- Nouvelle Consultation ----------
     def show_new_consultation_view(self):
         self.clear_content_frame()
         
-        title_label = tk.Label(self.content_frame, text="Nouvelle Consultation", font=("Segoe UI", 20, "bold"), bg="white")
+        scroll_frame = self.make_scrollable_frame(self.content_frame)
+
+        title_label = tk.Label(scroll_frame, text="Nouvelle Consultation", font=("Segoe UI", 20, "bold"), bg="white")
         title_label.pack(pady=20)
 
-        form_frame = tk.Frame(self.content_frame, bg="white")
+        form_frame = tk.Frame(scroll_frame, bg="white")
         form_frame.pack(padx=20, pady=10, fill="x")
 
-        # Form fields
         last_row = self.create_consultation_form(form_frame)
 
-        # FIX: Save button goes on a separate row after last field
         save_button = ttk.Button(form_frame, text="Enregistrer", command=self.save_consultation, style="Accent.TButton")
         save_button.grid(row=last_row, column=0, columnspan=2, pady=20, sticky="ew")
 
@@ -189,8 +216,8 @@ class CabinetPediatrie:
             entry.grid(row=i, column=1, pady=5, padx=10, sticky="ew")
             self.form_entries[label_text] = entry
 
-        parent_frame.grid_columnconfigure(1, weight=1)  # make entry column expand
-        return len(labels)  # return the next free row index
+        parent_frame.grid_columnconfigure(1, weight=1)
+        return len(labels)
 
     def save_consultation(self):
         values = [
@@ -208,6 +235,7 @@ class CabinetPediatrie:
         messagebox.showinfo("Succès", "Consultation enregistrée avec succès!")
         self.show_consultations_view()
 
+    # ---------- Édition Consultation ----------
     def edit_consultation_from_tree(self, event):
         item_id = self.consultations_tree.selection()[0]
         consultation_id = self.consultations_tree.item(item_id)['values'][0]
@@ -216,16 +244,15 @@ class CabinetPediatrie:
         self.edit_window.title("Modifier la consultation")
         self.edit_window.geometry("600x600")
 
-        cursor = self.db_conn.cursor()
-        cursor.execute("SELECT * FROM consultations WHERE id = ?", (consultation_id,))
-        consultation = cursor.fetchone()
-
         form_frame = tk.Frame(self.edit_window)
         form_frame.pack(padx=20, pady=10, fill="both", expand=True)
 
         self.create_consultation_form(form_frame)
         
-        # Populate form
+        cursor = self.db_conn.cursor()
+        cursor.execute("SELECT * FROM consultations WHERE id = ?", (consultation_id,))
+        consultation = cursor.fetchone()
+
         for i, key in enumerate(self.form_entries.keys()):
             if isinstance(self.form_entries[key], tk.Text):
                 self.form_entries[key].insert("1.0", consultation[i+1])
@@ -269,6 +296,7 @@ class CabinetPediatrie:
             self.load_consultations()
             messagebox.showinfo("Succès", "Consultation supprimée avec succès!")
 
+    # ---------- Stats ----------
     def show_stats_view(self):
         self.clear_content_frame()
         
