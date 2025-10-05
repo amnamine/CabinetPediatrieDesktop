@@ -39,7 +39,6 @@ class CabinetPediatrie:
                 traitement TEXT
             )
         ''')
-        # Insert default user if not exists
         cursor.execute("SELECT * FROM users WHERE username = 'doctor'")
         if not cursor.fetchone():
             hashed_password = bcrypt.hashpw('doctor'.encode('utf-8'), bcrypt.gensalt())
@@ -52,8 +51,24 @@ class CabinetPediatrie:
         login_frame = tk.Frame(self.root, bg="#667eea")
         login_frame.pack(expand=True, fill="both")
 
+        info_frame = tk.Frame(login_frame, bg="#667eea")
+        info_frame.pack(side="top", fill="x", pady=30)
+
+        title_label = tk.Label(
+            info_frame, text="Cabinet Pédiatrique",
+            font=("Segoe UI", 28, "bold"), bg="#667eea", fg="white"
+        )
+        title_label.pack(pady=10)
+
+        doctor_label = tk.Label(
+            info_frame,
+            text="Dr Taibi Houria\nChirurgien Pédiatre\nBoufarik\nEmail: taibihouria9@gmail.com",
+            font=("Segoe UI", 14), bg="#667eea", fg="white", justify="center"
+        )
+        doctor_label.pack(pady=10)
+
         login_card = tk.Frame(login_frame, bg="white", bd=5, relief="groove")
-        login_card.place(relx=0.5, rely=0.5, anchor="center")
+        login_card.place(relx=0.5, rely=0.55, anchor="center")
 
         header_label = tk.Label(login_card, text="Connexion", font=("Segoe UI", 24, "bold"), bg="white", fg="#333")
         header_label.pack(pady=(20, 10))
@@ -93,10 +108,10 @@ class CabinetPediatrie:
 
         title_label = tk.Label(header_frame, text="Cabinet Pédiatrique", font=("Segoe UI", 24, "bold"), bg="#667eea", fg="white")
         title_label.pack(side="left", padx=20)
-        
+
         logout_button = ttk.Button(header_frame, text="Déconnexion", command=self.show_login_screen, style="Accent.TButton")
         logout_button.pack(side="right", padx=20)
-        
+
         welcome_label = tk.Label(header_frame, text=f"Bienvenue, Dr Taibi Houria", font=("Segoe UI", 12), bg="#667eea", fg="white")
         welcome_label.pack(side="right")
 
@@ -109,10 +124,9 @@ class CabinetPediatrie:
         self.content_frame = tk.Frame(main_frame, bg="white", bd=2, relief="groove")
         self.content_frame.pack(side="left", expand=True, fill="both", padx=10, pady=10)
 
-        # Sidebar buttons
         consultations_button = ttk.Button(sidebar, text="Consultations", command=self.show_consultations_view, style="Nav.TButton")
         consultations_button.pack(fill="x", pady=10, padx=10)
-        
+
         new_consultation_button = ttk.Button(sidebar, text="Nouvelle Consultation", command=self.show_new_consultation_view, style="Nav.TButton")
         new_consultation_button.pack(fill="x", pady=10, padx=10)
 
@@ -121,7 +135,7 @@ class CabinetPediatrie:
 
         self.show_consultations_view()
 
-    # ---------- Helpers pour scroll ----------
+    # ----- Scroll helper -----
     def make_scrollable_frame(self, parent):
         canvas = tk.Canvas(parent, bg="white")
         scrollbar = ttk.Scrollbar(parent, orient="vertical", command=canvas.yview)
@@ -132,37 +146,54 @@ class CabinetPediatrie:
             lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
 
-        window = canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
 
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        # permettre scroll avec molette
-        def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        canvas.bind("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
 
         return scrollable_frame
 
-    # ---------- Consultations ----------
+    # ----- Consultations -----
     def show_consultations_view(self):
         self.clear_content_frame()
-        
-        # Scrollable frame
         scroll_frame = self.make_scrollable_frame(self.content_frame)
 
         title_label = tk.Label(scroll_frame, text="Liste des Consultations", font=("Segoe UI", 20, "bold"), bg="white")
         title_label.pack(pady=20)
 
-        self.consultations_tree = ttk.Treeview(scroll_frame, columns=("ID", "Date", "Nom", "Prénom", "Âge", "Motif"), show="headings", height=20)
+        tree_frame = tk.Frame(scroll_frame, bg="white")
+        tree_frame.pack(expand=True, fill="both", padx=20, pady=10)
+
+        y_scroll = ttk.Scrollbar(tree_frame, orient="vertical")
+
+        self.consultations_tree = ttk.Treeview(
+            tree_frame,
+            columns=("ID", "Date", "Nom", "Prénom", "Âge"),
+            show="headings",
+            height=20,
+            yscrollcommand=y_scroll.set
+        )
+
+        # Colonnes affichées
         self.consultations_tree.heading("ID", text="ID")
         self.consultations_tree.heading("Date", text="Date")
         self.consultations_tree.heading("Nom", text="Nom")
         self.consultations_tree.heading("Prénom", text="Prénom")
         self.consultations_tree.heading("Âge", text="Âge")
-        self.consultations_tree.heading("Motif", text="Motif")
-        self.consultations_tree.pack(expand=True, fill="both", padx=20, pady=10)
+
+        for col in self.consultations_tree["columns"]:
+            self.consultations_tree.column(col, width=150, anchor="w")
+
+        y_scroll.config(command=self.consultations_tree.yview)
+
+        self.consultations_tree.grid(row=0, column=0, sticky="nsew")
+        y_scroll.grid(row=0, column=1, sticky="ns")
+
+        tree_frame.grid_rowconfigure(0, weight=1)
+        tree_frame.grid_columnconfigure(0, weight=1)
 
         self.load_consultations()
         self.consultations_tree.bind("<Double-1>", self.edit_consultation_from_tree)
@@ -172,14 +203,13 @@ class CabinetPediatrie:
             self.consultations_tree.delete(i)
 
         cursor = self.db_conn.cursor()
-        cursor.execute("SELECT id, date_consultation, nom_patient, prenom_patient, age, motif_consultation FROM consultations ORDER BY date_consultation DESC")
+        cursor.execute("SELECT id, date_consultation, nom_patient, prenom_patient, age FROM consultations ORDER BY date_consultation DESC")
         for row in cursor.fetchall():
             self.consultations_tree.insert("", "end", values=row)
 
-    # ---------- Nouvelle Consultation ----------
+    # ----- Nouvelle Consultation -----
     def show_new_consultation_view(self):
         self.clear_content_frame()
-        
         scroll_frame = self.make_scrollable_frame(self.content_frame)
 
         title_label = tk.Label(scroll_frame, text="Nouvelle Consultation", font=("Segoe UI", 20, "bold"), bg="white")
@@ -235,20 +265,22 @@ class CabinetPediatrie:
         messagebox.showinfo("Succès", "Consultation enregistrée avec succès!")
         self.show_consultations_view()
 
-    # ---------- Édition Consultation ----------
+    # ----- Édition Consultation -----
     def edit_consultation_from_tree(self, event):
         item_id = self.consultations_tree.selection()[0]
         consultation_id = self.consultations_tree.item(item_id)['values'][0]
-        
+
         self.edit_window = tk.Toplevel(self.root)
         self.edit_window.title("Modifier la consultation")
         self.edit_window.geometry("600x600")
 
-        form_frame = tk.Frame(self.edit_window)
+        # Scrollable
+        scroll_frame = self.make_scrollable_frame(self.edit_window)
+        form_frame = tk.Frame(scroll_frame, bg="white")
         form_frame.pack(padx=20, pady=10, fill="both", expand=True)
 
         self.create_consultation_form(form_frame)
-        
+
         cursor = self.db_conn.cursor()
         cursor.execute("SELECT * FROM consultations WHERE id = ?", (consultation_id,))
         consultation = cursor.fetchone()
@@ -261,7 +293,7 @@ class CabinetPediatrie:
 
         update_button = ttk.Button(form_frame, text="Mettre à jour", command=lambda: self.update_consultation(consultation_id), style="Accent.TButton")
         update_button.grid(row=8, column=0, columnspan=2, pady=20, sticky="ew")
-        
+
         delete_button = ttk.Button(form_frame, text="Supprimer", command=lambda: self.delete_consultation(consultation_id), style="Danger.TButton")
         delete_button.grid(row=9, column=0, columnspan=2, pady=10, sticky="ew")
 
@@ -272,7 +304,7 @@ class CabinetPediatrie:
             for label in self.form_entries
         ]
         values.append(consultation_id)
-        
+
         cursor = self.db_conn.cursor()
         cursor.execute('''
             UPDATE consultations SET
@@ -281,48 +313,48 @@ class CabinetPediatrie:
             WHERE id = ?
         ''', tuple(values))
         self.db_conn.commit()
-        
+
         self.edit_window.destroy()
         self.load_consultations()
         messagebox.showinfo("Succès", "Consultation mise à jour avec succès!")
 
     def delete_consultation(self, consultation_id):
-         if messagebox.askyesno("Confirmation", "Êtes-vous sûr de vouloir supprimer cette consultation ?"):
+        if messagebox.askyesno("Confirmation", "Êtes-vous sûr de vouloir supprimer cette consultation ?"):
             cursor = self.db_conn.cursor()
             cursor.execute("DELETE FROM consultations WHERE id = ?", (consultation_id,))
             self.db_conn.commit()
-            
+
             self.edit_window.destroy()
             self.load_consultations()
             messagebox.showinfo("Succès", "Consultation supprimée avec succès!")
 
-    # ---------- Stats ----------
+    # ----- Stats -----
     def show_stats_view(self):
         self.clear_content_frame()
-        
+
         title_label = tk.Label(self.content_frame, text="Statistiques", font=("Segoe UI", 20, "bold"), bg="white")
         title_label.pack(pady=20)
-        
+
         stats_frame = tk.Frame(self.content_frame, bg="white")
         stats_frame.pack(expand=True)
-        
+
         cursor = self.db_conn.cursor()
         cursor.execute("SELECT COUNT(*), AVG(age) FROM consultations")
         total_consultations, avg_age = cursor.fetchone()
-        
+
         cursor.execute("SELECT COUNT(*) FROM consultations WHERE date_consultation = ?", (datetime.today().strftime('%Y-%m-%d'),))
         today_consultations = cursor.fetchone()[0]
 
         total_consultations_label = tk.Label(stats_frame, text=f"Consultations totales: {total_consultations}", font=("Segoe UI", 16), bg="white")
         total_consultations_label.pack(pady=10)
-        
+
         today_consultations_label = tk.Label(stats_frame, text=f"Consultations aujourd'hui: {today_consultations}", font=("Segoe UI", 16), bg="white")
         today_consultations_label.pack(pady=10)
 
         avg_age_text = f"{avg_age:.2f}" if avg_age else "0"
         avg_age_label = tk.Label(stats_frame, text=f"Âge moyen des patients: {avg_age_text}", font=("Segoe UI", 16), bg="white")
         avg_age_label.pack(pady=10)
-        
+
     def clear_frame(self):
         for widget in self.root.winfo_children():
             widget.destroy()
@@ -330,14 +362,14 @@ class CabinetPediatrie:
     def clear_content_frame(self):
         for widget in self.content_frame.winfo_children():
             widget.destroy()
-            
+
+
 if __name__ == "__main__":
     root = tk.Tk()
-    
-    # Styling
+
     style = ttk.Style()
     style.theme_use("clam")
-    
+
     style.configure("TButton", font=("Segoe UI", 12), padding=10)
     style.configure("Accent.TButton", foreground="white", background="#667eea")
     style.configure("Nav.TButton", font=("Segoe UI", 14), padding=15, width=20, background="#f8f9fa")
